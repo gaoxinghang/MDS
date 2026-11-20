@@ -170,9 +170,34 @@ chore(git): ignore vscode settings
 
 # ==浏览器操作==
 
-以后涉及到浏览器的操作，都使用 Playwright，通过本机的 `playwright-cli` 完成。包括打开网页、点击、填写、截图和读取页面内容。
+浏览器操作使用 `playwright-browser` Skill 和本机 Playwright CLI 包装脚本。
+先读技能说明；默认直接连接我已打开的 Chrome，复用当前个人资料和登录状态，
+不要另开独立浏览器，除非我明确要求。
 
-先读 Playwright 的使用说明再操作。用 `playwright-cli` 打开页面，需要看清页面时再取一次结构快照，然后按快照里的元素引用去点击或填写。任务结束后关闭这次打开的浏览器。
+1. 确认 Chrome 正在运行，当前个人资料已启用 Playwright MCP Bridge 扩展。
+   Pi 从启动它的 zsh 继承 `~/.zshrc` 导出的
+   `PLAYWRIGHT_MCP_EXTENSION_TOKEN`。用扩展连接，不需要每次点「允许」：
+
+   ```bash
+   pw="$HOME/.pi/agent/npm/node_modules/pi-playwright/skills"
+   pw="$pw/playwright-browser/scripts/pw.js"
+   node "$pw" -s=my-chrome attach --extension=chrome
+   ```
+
+2. 后续命令沿用 `-s=my-chrome`；每个新 shell 先设好上面的 `pw`。
+   用 `tab-list` 查标签页，`tab-select <编号>` 切换。目标页没打开时，
+   用 `tab-new <网址>` 在当前 Chrome 开新标签页，不覆盖无关页面。
+3. 用 `snapshot` 读取页面和元素引用，再用实际引用执行
+   `click e4`、`fill e5 "文本"` 等。页面更新后重新取快照，操作后核对结果。
+   只操作本次任务涉及的页面。
+4. 做完用 `node "$pw" -s=my-chrome detach` 断开，不用 `close`，
+   保留 Chrome 和标签页。
+5. 如果 Pi 没继承变量，在启动 Pi 的终端执行 `source ~/.zshrc`，
+   退出并重新启动 Pi。只检查变量是否存在，不打印、索要或记录 token。
+   如果仍连接失败，确认扩展在当前 Chrome 个人资料内启用；个人资料可在
+   `chrome://version` 核对。若报 `Operation not permitted`，检查
+   macOS「隐私与安全性 → 文件与文件夹」里终端的「Google Chrome」权限
+   （若有），不要默认重装扩展或开启「完全磁盘访问」。
 
 # ==电脑操作==
 
