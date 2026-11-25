@@ -73,18 +73,42 @@ mode: Literal["r", "w"] = "r"
 ## Annotated
 
 **`Annotated[T, 元数据]` 给类型 `T` 附加信息，不改变它的基础类型。**
-元数据可以供框架或自定义工具读取，例如字段说明、校验规则或参数来源。
+从第二项开始都是元数据，可以放一个或多个 Python 对象，没有固定的类型清单。
+**能放进去，不等于会生效**：要看框架或自己的代码会不会读取和处理它。
+
+| 写法 | 元数据是什么、谁来处理 |
+| --- | --- |
+| `Annotated[int, "年龄，单位为年"]` | 字符串说明；可由自己的代码读取，Python 不会自动显示 |
+| `Annotated[int, "年龄", 18]` | 多项元数据；`18` 不会自动变成默认值或最小值 |
+| `Annotated[int, Field(ge=0)]` | 字段配置；Pydantic 读取它并做非负校验 |
+| `Annotated[str, StringConstraints(min_length=1)]` | 字符串约束；Pydantic 读取它并检查长度 |
+| `Annotated[list[AnyMessage], add_messages]` | 函数对象；LangGraph 用它合并消息状态 |
+| `Annotated[str, PrivateStateAttr]` | 框架标记；LangChain 将该状态字段从输入和输出结构中省略 |
 
 ```python
-from typing import Annotated
+from typing import Annotated, get_type_hints
 
-Age = Annotated[int, "年龄，单位为年"]
-age: Age = 18
+
+class User:
+  """表示一个带年龄的用户。
+
+  Attributes:
+      age: 用户年龄，单位为年。
+  """
+
+  age: Annotated[int, "年龄", "单位：年"]
+
+
+assert get_type_hints(User)["age"] is int
+hint = get_type_hints(User, include_extras=True)["age"]
+assert hint.__metadata__ == ("年龄", "单位：年")
 ```
 
-> `Annotated` 不会自行处理元数据或校验值。比如 Pydantic 会读取
-> `Annotated[int, Field(ge=0)]` 中的 `Field()` 并执行非负校验。
-> 用 `get_type_hints(..., include_extras=True)` 可以保留元数据；默认会去掉它。
+> `Annotated` 不会自行校验值或执行函数。只关心基础类型的工具可以忽略元数据；
+> 用 `get_type_hints(..., include_extras=True)` 才会保留这些附加信息。
+> `lota` 的 `NotRequired[Annotated[str, PrivateStateAttr]]` 中，外层管键能否省略，
+> 内层标记管它是否出现在 Agent 的输入和返回结果里。
+> Pydantic 的字符串约束见 [StringConstraints](pydantic.md#stringconstraints)。
 
 ## TypedDict
 

@@ -1,7 +1,7 @@
 # Pydantic v2 基础速查
 
-Pydantic 是第三方数据校验库。`BaseModel` 定义模型，`Field()` 配置字段，
-校验装饰器用于声明内置约束无法覆盖的规则。
+Pydantic 是第三方数据校验库。`BaseModel` 定义模型，`ConfigDict` 设置模型默认行为，
+`Field()` 和 `StringConstraints` 配置字段，校验装饰器用于编写自定义规则。
 
 [TOC]
 
@@ -81,6 +81,86 @@ except ValidationError as error:
 
 > `Field()` 只声明规则，由 Pydantic 执行校验。默认情况下不校验默认值；
 > 需要校验时显式设置 `validate_default=True`。
+
+## ConfigDict
+
+**`ConfigDict` 用来设置整个模型的默认行为。**
+
+| 写法 | 含义 |
+| --- | --- |
+| `model_config = ConfigDict(...)` | 在模型类中设置默认行为 |
+| `str_strip_whitespace=True` | 默认去掉字符串两端的空白 |
+| `str_min_length=1` | 默认要求字符串至少有一个字符 |
+| `frozen=True` | 实例创建后不允许给字段重新赋值 |
+
+```python
+from pydantic import BaseModel, ConfigDict
+
+
+class Note(BaseModel):
+  """表示一条有标题的笔记。
+
+  Attributes:
+      title: 笔记标题。
+  """
+
+  model_config = ConfigDict(
+    str_strip_whitespace=True, str_min_length=1, frozen=True,
+  )
+  title: str
+
+
+assert Note(title="  Python  ").title == "Python"
+```
+
+> `title` 不需要单独写去空白规则，会直接沿用模型配置。
+
+## StringConstraints
+
+**`StringConstraints` 配合 `Annotated`，给单个字符串字段加规则。**
+
+| 写法 | 含义 |
+| --- | --- |
+| `Annotated[str, StringConstraints(...)]` | 字段仍是 `str`，由 Pydantic 执行附加规则 |
+| `pattern=r"^[A-Za-z0-9_]+$"` | 整个字符串只能含英文字母、数字和下划线，且不能为空 |
+| `strip_whitespace=False` | 当前字段不去掉首尾空白，覆盖模型的默认设置 |
+
+```python
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, StringConstraints, ValidationError
+
+
+class MemoryRecord(BaseModel):
+  """表示一条带标识和简介的记忆。
+
+  Attributes:
+      name: 只含英文字母、数字和下划线的标识。
+      description: 记忆的简短介绍。
+  """
+
+  model_config = ConfigDict(str_strip_whitespace=True)
+
+  name: Annotated[
+    str,
+    StringConstraints(strip_whitespace=False, pattern=r"^[A-Za-z0-9_]+$"),
+  ]
+  description: str
+
+
+record = MemoryRecord(name="Python_Style2", description=" 缩进偏好 ")
+assert record.description == "缩进偏好"
+
+try:
+  MemoryRecord(name=" Python_Style2 ", description="缩进偏好")
+except ValidationError as error:
+  assert error.errors()[0]["loc"] == ("name",)
+else:
+  raise AssertionError("name 不应该接受首尾空白")
+```
+
+> `pattern` 不会自动要求匹配整个字符串；这里用 `^` 和 `$` 限定开头和结尾。
+> `description` 沿用默认规则，会去掉首尾空白；`name` 保留空白再校验，因此会拒绝带空白的输入。
 
 ## validator
 
