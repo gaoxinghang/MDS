@@ -138,6 +138,34 @@ assert user["name"] == "Alice"
 > 默认键是必填的。`NotRequired[str]` 表示键可以缺失，
 > `str | None` 表示值可以是 `None`，并不表示键可以缺失。
 
+## cast
+
+**`cast(T, value)` 告诉静态类型检查器按 `T` 看待 `value`。**
+运行时原样返回 `value`：不转换、不校验，也不复制。
+
+| 写法 | 含义 |
+| --- | --- |
+| `cast(str, value)` | 告诉类型检查器把结果当作 `str` |
+| `isinstance(value, str)` | 运行时检查值是不是字符串，也能帮助类型检查器缩小范围 |
+| `str(value)` | 运行时把值转换成字符串 |
+
+```python
+from typing import cast
+
+value: object = "hello"
+text = cast(str, value)
+
+assert text.upper() == "HELLO"
+assert text is value
+assert isinstance(cast(str, 42), int)
+assert str(42) == "42"
+```
+
+> `cast(str, 42)` 虽然告诉类型检查器结果是字符串，但运行时它仍是整数。
+> 只在你已有依据确认类型时用 `cast()`；拿不准时用运行时检查或校验。
+> 在 `lota` 的 `cast(MemoryState, request.state).get(...)` 里，
+> `cast()` 只让类型检查器认识自定义状态字段，`.get()` 才真正读取数据。
+
 ## Callable
 
 **`Callable[[参数类型, ...], 返回类型]` 用来标注回调等可调用对象。**
